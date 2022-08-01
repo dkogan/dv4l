@@ -244,11 +244,11 @@ bool decoder_init(// out
     // THEN feed swscale?
     if(pixfmt->pixelformat == V4L2_PIX_FMT_JPEG)
     {
-        ENSURE(NULL != (camera->av_codec         = avcodec_find_decoder(AV_CODEC_ID_MJPEG)));
-        ENSURE(NULL != (camera->av_codec_context = avcodec_alloc_context3(NULL)));
-        ENSURE(NULL != (camera->av_frame         = av_frame_alloc()));
         ENSURE(NULL != (camera->av_packet        = av_packet_alloc()));
+        ENSURE(NULL != (camera->av_codec         = avcodec_find_decoder(AV_CODEC_ID_MJPEG)));
+        ENSURE(NULL != (camera->av_codec_context = avcodec_alloc_context3(camera->av_codec)));
         ENSURE(avcodec_open2(camera->av_codec_context, camera->av_codec, NULL) >= 0);
+        ENSURE(NULL != (camera->av_frame         = av_frame_alloc()));
 
         // I have now set up the decoder and need to set up the scaler. Sadly
         // libavcodec doesn't give me the output pixel format until we've
@@ -613,19 +613,19 @@ void dv4l_deinit(dv4l_t* camera)
     if(camera->av_codec_context)
     {
         avcodec_close(camera->av_codec_context);
-        av_free(camera->av_codec_context);
+        avcodec_free_context(&camera->av_codec_context);
         camera->av_codec_context = NULL;
     }
 
     if(camera->av_frame)
     {
-        av_free(camera->av_frame);
+        av_frame_free(&camera->av_frame);
         camera->av_frame = NULL;
     }
 
     if(camera->av_packet)
     {
-        av_free(camera->av_packet);
+        av_packet_free(&camera->av_packet);
         camera->av_packet = NULL;
     }
 
@@ -753,16 +753,17 @@ bool dv4l_getframe(dv4l_t* camera,
     // This is only needed for some formats
     if(camera->av_codec_context)
     {
-        int frame_finished;
+        ENSURE(0 <= avcodec_send_packet(camera->av_codec_context,
+                                        camera->av_packet));
 
-        camera->av_packet->data = bytes_frame;
-        camera->av_packet->size = Nbytes_frame;
-        int decode_result  = avcodec_decode_video2(camera->av_codec_context,
-                                                   camera->av_frame,
-                                                   &frame_finished,
-                                                   camera->av_packet);
-        ENSURE_DETAILEDERR(decode_result >= 0 && frame_finished,
-               "error decoding ffmpeg frame");
+        // Not checking for
+        //
+        //   AVERROR(EAGAIN) || ret == AVERROR_EOF
+        //
+        // As the sample suggests. I'm waiting for exactly one frame, so that's
+        // what I should get
+        ENSURE(0 <= avcodec_receive_frame(camera->av_codec_context,
+                                          camera->av_frame));
 
         scale_source = (const uint8_t*const*)camera->av_frame->data;
         scale_stride = camera->av_frame->linesize;
@@ -785,6 +786,10 @@ bool dv4l_getframe(dv4l_t* camera,
 
                                    // misc stuff
                                    SWS_POINT, NULL, NULL, NULL)));
+
+        // should be done
+        ENSURE(AVERROR_EOF == avcodec_receive_frame(camera->av_codec_context,
+                                                    camera->av_frame));
     }
     else
     {
