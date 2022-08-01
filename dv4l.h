@@ -28,7 +28,7 @@ typedef struct
     // If the data needs decoding (not just unpacking), this library does that.
     // Most commonly this is done with MJPEG. Much of the time this isn't
     // needed, and all of these will be NULL
-    AVCodec*        av_codec;
+    const AVCodec*  av_codec;
     AVCodecContext* av_codec_context;
     AVFrame*        av_frame;
     AVPacket*       av_packet;
