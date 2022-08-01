@@ -15,6 +15,8 @@ typedef struct
 {
     int                        fd;
     struct v4l2_format         format;
+    enum AVPixelFormat         av_pixel_format;
+
     bool                       streaming  : 1;
     bool                       want_color : 1;
     // used if streaming

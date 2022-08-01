@@ -258,37 +258,35 @@ bool decoder_init(// out
 
 
 
-    enum AVPixelFormat pixfmt_swscale;
-
     switch(pixfmt->pixelformat)
     {
     /* RGB formats */
     /* 32  BGR-8-8-8-8 */
     case V4L2_PIX_FMT_BGR32:
-        pixfmt_swscale = AV_PIX_FMT_BGR32;
+        camera->av_pixel_format = AV_PIX_FMT_BGR32;
         break;
     /* 32  RGB-8-8-8-8 */
     case V4L2_PIX_FMT_RGB32:
-        pixfmt_swscale = AV_PIX_FMT_RGB32;
+        camera->av_pixel_format = AV_PIX_FMT_RGB32;
         break;
     /* 24  BGR-8-8-8 */
     case V4L2_PIX_FMT_BGR24:
-        pixfmt_swscale = AV_PIX_FMT_BGR24;
+        camera->av_pixel_format = AV_PIX_FMT_BGR24;
         break;
     /* 24  RGB-8-8-8 */
     case V4L2_PIX_FMT_RGB24:
-        pixfmt_swscale = AV_PIX_FMT_RGB24;
+        camera->av_pixel_format = AV_PIX_FMT_RGB24;
         break;
     /* 16  xxxxrrrr ggggbbbb */
     case V4L2_PIX_FMT_RGB444:
         return false;
     /* 16  RGB-5-5-5 */
     case V4L2_PIX_FMT_RGB555:
-        pixfmt_swscale = AV_PIX_FMT_RGB555;
+        camera->av_pixel_format = AV_PIX_FMT_RGB555;
         break;
     /* 16  RGB-5-6-5 */
     case V4L2_PIX_FMT_RGB565:
-        pixfmt_swscale = AV_PIX_FMT_RGB565;
+        camera->av_pixel_format = AV_PIX_FMT_RGB565;
         break;
     /* 16  RGB-5-5-5 BE */
     case V4L2_PIX_FMT_RGB555X:
@@ -303,7 +301,7 @@ bool decoder_init(// out
     /* Palette formats */
     /*  8  8-bit palette */
     case V4L2_PIX_FMT_PAL8:
-        pixfmt_swscale = AV_PIX_FMT_PAL8;
+        camera->av_pixel_format = AV_PIX_FMT_PAL8;
         break;
 
     /* Luminance+Chrominance formats */
@@ -321,7 +319,7 @@ bool decoder_init(// out
         return false;
     /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_YUYV:
-        pixfmt_swscale = AV_PIX_FMT_YUYV422;
+        camera->av_pixel_format = AV_PIX_FMT_YUYV422;
         break;
     /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_YYUV:
@@ -331,36 +329,36 @@ bool decoder_init(// out
         return false;
     /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_UYVY:
-        pixfmt_swscale = AV_PIX_FMT_UYVY422;
+        camera->av_pixel_format = AV_PIX_FMT_UYVY422;
         break;
     /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_VYUY:
         return false;
     /* 16  YVU422 planar */
     case V4L2_PIX_FMT_YUV422P:
-        pixfmt_swscale = AV_PIX_FMT_YUV422P;
+        camera->av_pixel_format = AV_PIX_FMT_YUV422P;
         break;
     /* 16  YVU411 planar */
     case V4L2_PIX_FMT_YUV411P:
-        pixfmt_swscale = AV_PIX_FMT_YUV411P;
+        camera->av_pixel_format = AV_PIX_FMT_YUV411P;
         break;
     /* 12  YVU 4:2:0 */
     case V4L2_PIX_FMT_YVU420:
         return false;
     /* 12  YUV 4:1:1 */
     case V4L2_PIX_FMT_Y41P:
-        pixfmt_swscale = AV_PIX_FMT_UYYVYY411;
+        camera->av_pixel_format = AV_PIX_FMT_UYYVYY411;
         break;
     /* 12  YUV 4:2:0 */
     case V4L2_PIX_FMT_YUV420:
-        pixfmt_swscale = AV_PIX_FMT_YUV420P;
+        camera->av_pixel_format = AV_PIX_FMT_YUV420P;
         break;
     /*  9  YVU 4:1:0 */
     case V4L2_PIX_FMT_YVU410:
         return false;
     /*  9  YUV 4:1:0 */
     case V4L2_PIX_FMT_YUV410:
-        pixfmt_swscale = AV_PIX_FMT_YUV410P;
+        camera->av_pixel_format = AV_PIX_FMT_YUV410P;
         break;
     /*  8  8-bit color */
     case V4L2_PIX_FMT_HI240:
@@ -372,15 +370,15 @@ bool decoder_init(// out
     /* two planes -- one Y: one Cr + Cb interleaved */
     /* 12  Y/CbCr 4:2:0 */
     case V4L2_PIX_FMT_NV12:
-        pixfmt_swscale = AV_PIX_FMT_NV12;
+        camera->av_pixel_format = AV_PIX_FMT_NV12;
         break;
     /* 12  Y/CrCb 4:2:0 */
     case V4L2_PIX_FMT_NV21:
-        pixfmt_swscale = AV_PIX_FMT_NV21;
+        camera->av_pixel_format = AV_PIX_FMT_NV21;
         break;
     /* 16  Y/CbCr 4:2:2 */
     case V4L2_PIX_FMT_NV16:
-        pixfmt_swscale = AV_PIX_FMT_YUV422P;
+        camera->av_pixel_format = AV_PIX_FMT_YUV422P;
         break;
     /* 16  Y/CrCb 4:2:2 */
     case V4L2_PIX_FMT_NV61:
@@ -389,11 +387,11 @@ bool decoder_init(// out
     /* Grey formats */
     /* 16  Greyscale */
     case V4L2_PIX_FMT_Y16:
-        pixfmt_swscale = AV_PIX_FMT_GRAY16LE;
+        camera->av_pixel_format = AV_PIX_FMT_GRAY16LE;
         break;
     /*  8  Greyscale */
     case V4L2_PIX_FMT_GREY:
-        pixfmt_swscale = AV_PIX_FMT_GRAY8;
+        camera->av_pixel_format = AV_PIX_FMT_GRAY8;
         break;
 
     default:
@@ -408,7 +406,7 @@ bool decoder_init(// out
     ENSURE(NULL !=
            (camera->sws_context =
             sws_getContext(// source
-                           pixfmt->width, pixfmt->height, pixfmt_swscale,
+                           pixfmt->width, pixfmt->height, camera->av_pixel_format,
 
                            // destination
                            pixfmt->width, pixfmt->height,
