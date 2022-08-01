@@ -17,6 +17,7 @@
 
 #include <asm/types.h>
 #include <linux/videodev2.h>
+#include <libavutil/imgutils.h>
 
 #include "dv4l.h"
 
@@ -710,8 +711,8 @@ bool dv4l_getframe(dv4l_t* camera,
 
 
 
-    int            Nbytes_frame;
-    unsigned char* bytes_frame;
+    int      Nbytes_frame;
+    uint8_t* bytes_frame;
 
     if( !camera->streaming )
     {
@@ -731,7 +732,7 @@ bool dv4l_getframe(dv4l_t* camera,
         ENSURE_IOCTL(camera->fd, VIDIOC_DQBUF, &v4l2_buf);
         need_to_requeue_buffer = true;
 
-        bytes_frame = (unsigned char*)camera->mmapped_buf[v4l2_buf.index];
+        bytes_frame = (uint8_t*)camera->mmapped_buf[v4l2_buf.index];
         Nbytes_frame = v4l2_buf.bytesused;
 
         int     s  = v4l2_buf.timestamp.tv_sec;
@@ -743,10 +744,11 @@ bool dv4l_getframe(dv4l_t* camera,
     // I now have the raw frame data in (bytes_frame, Nbytes_frame). I convert
 
     const uint8_t * const * scale_source;
-
-    // Extra variable needed to make sure that scale_stride has type int*
-    int  pixfmt_bytesperline = camera->format.fmt.pix.bytesperline;
     int* scale_stride;
+
+    // may need to point the above pointers here
+    int      scale_stride_value[4];
+    uint8_t* scale_source_value[4];
 
     // This is only needed for some formats
     if(camera->av_codec_context)
@@ -791,8 +793,16 @@ bool dv4l_getframe(dv4l_t* camera,
     }
     else
     {
-        scale_source = (const uint8_t*const*)&bytes_frame;
-        scale_stride = &pixfmt_bytesperline;
+
+        ENSURE(0 < av_image_fill_arrays(scale_source_value, scale_stride_value,
+                                        bytes_frame,
+                                        camera->av_pixel_format,
+                                        camera->format.fmt.pix.width,
+                                        camera->format.fmt.pix.height,
+                                        1) );
+
+        scale_source = (const uint8_t*const*)scale_source_value;
+        scale_stride = scale_stride_value;
     }
 
 
