@@ -1,9 +1,9 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <limits.h>
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -18,7 +18,6 @@
 #include <asm/types.h>
 #include <linux/videodev2.h>
 
-
 #include "dv4l.h"
 
 
@@ -28,16 +27,17 @@
 
 // These macros all need a local cleanup() function to be available to run on
 // failure
-#define ENSURE(what, ...) do {                                          \
+#define ENSURE_DETAILEDERR(what, fmt, ...) do {                         \
     if(!(what))                                                         \
     {                                                                   \
-        MSG("Failed '" #what "'. ", ## __VA_ARGS__);                    \
+        MSG("Failed '" #what "'. " fmt , ## __VA_ARGS__);               \
         cleanup();                                                      \
         return false;                                                   \
     } } while(0)
+#define ENSURE(what) ENSURE_DETAILEDERR(what, "")
 
 #define ENSURE_IOCTL_DETAILEDERR(fd, request, arg, fmt, ...) do {       \
-        ENSURE( ioctl_persistent(fd,request,arg) >= 0,                  \
+        ENSURE_DETAILEDERR( ioctl_persistent(fd,request,arg) >= 0,                  \
                 "Couldn't " #request ": %s" fmt,                        \
                 strerrordesc_np(errno), ## __VA_ARGS__);                \
     } while(0)
@@ -192,7 +192,7 @@ bool pixfmt_select(// out
 
     *pixfmt = 0;
 
-    unsigned int pixfmt_best_cost = INT_MAX;
+    int pixfmt_best_cost = INT_MAX;
 
     for( struct v4l2_fmtdesc fmtdesc = {.index = 0,
                                         .type  = V4L2_BUF_TYPE_VIDEO_CAPTURE};
@@ -231,7 +231,7 @@ static
 bool decoder_init(// out
                   dv4l_t* camera,
                   // in
-                  const v4l2_pix_format* pixfmt,
+                  const struct v4l2_pix_format* pixfmt,
                   bool want_color)
 {
     // for ENSURE()
@@ -244,13 +244,11 @@ bool decoder_init(// out
     // THEN feed swscale?
     if(pixfmt->pixelformat == V4L2_PIX_FMT_JPEG)
     {
-        avcodec_register_all();
-
         ENSURE(NULL != (camera->av_codec         = avcodec_find_decoder(AV_CODEC_ID_MJPEG)));
         ENSURE(NULL != (camera->av_codec_context = avcodec_alloc_context3(NULL)));
         ENSURE(NULL != (camera->av_frame         = av_frame_alloc()));
         ENSURE(NULL != (camera->av_packet        = av_packet_alloc()));
-        ENSURE(avcodec_open2(camera->av_codec_context, av_codec, NULL) >= 0);
+        ENSURE(avcodec_open2(camera->av_codec_context, camera->av_codec, NULL) >= 0);
 
         // I have now set up the decoder and need to set up the scaler. Sadly
         // libavcodec doesn't give me the output pixel format until we've
@@ -265,61 +263,155 @@ bool decoder_init(// out
     switch(pixfmt->pixelformat)
     {
     /* RGB formats */
-    case V4L2_PIX_FMT_BGR32:   pixfmt_swscale = AV_PIX_FMT_BGR32;  /* 32  BGR-8-8-8-8   */
-    case V4L2_PIX_FMT_RGB32:   pixfmt_swscale = AV_PIX_FMT_RGB32;  /* 32  RGB-8-8-8-8   */
-    case V4L2_PIX_FMT_BGR24:   pixfmt_swscale = AV_PIX_FMT_BGR24;  /* 24  BGR-8-8-8     */
-    case V4L2_PIX_FMT_RGB24:   pixfmt_swscale = AV_PIX_FMT_RGB24;  /* 24  RGB-8-8-8     */
-    case V4L2_PIX_FMT_RGB444:  return false;                       /* 16  xxxxrrrr ggggbbbb */
-    case V4L2_PIX_FMT_RGB555:  pixfmt_swscale = AV_PIX_FMT_RGB555; /* 16  RGB-5-5-5     */
-    case V4L2_PIX_FMT_RGB565:  pixfmt_swscale = AV_PIX_FMT_RGB565; /* 16  RGB-5-6-5     */
-    case V4L2_PIX_FMT_RGB555X: return false;                       /* 16  RGB-5-5-5 BE  */
-    case V4L2_PIX_FMT_RGB565X: return false;                       /* 16  RGB-5-6-5 BE  */
-    case V4L2_PIX_FMT_RGB332:  return false;                       /*  8  RGB-3-3-2     */
+    /* 32  BGR-8-8-8-8 */
+    case V4L2_PIX_FMT_BGR32:
+        pixfmt_swscale = AV_PIX_FMT_BGR32;
+        break;
+    /* 32  RGB-8-8-8-8 */
+    case V4L2_PIX_FMT_RGB32:
+        pixfmt_swscale = AV_PIX_FMT_RGB32;
+        break;
+    /* 24  BGR-8-8-8 */
+    case V4L2_PIX_FMT_BGR24:
+        pixfmt_swscale = AV_PIX_FMT_BGR24;
+        break;
+    /* 24  RGB-8-8-8 */
+    case V4L2_PIX_FMT_RGB24:
+        pixfmt_swscale = AV_PIX_FMT_RGB24;
+        break;
+    /* 16  xxxxrrrr ggggbbbb */
+    case V4L2_PIX_FMT_RGB444:
+        return false;
+    /* 16  RGB-5-5-5 */
+    case V4L2_PIX_FMT_RGB555:
+        pixfmt_swscale = AV_PIX_FMT_RGB555;
+        break;
+    /* 16  RGB-5-6-5 */
+    case V4L2_PIX_FMT_RGB565:
+        pixfmt_swscale = AV_PIX_FMT_RGB565;
+        break;
+    /* 16  RGB-5-5-5 BE */
+    case V4L2_PIX_FMT_RGB555X:
+        return false;
+    /* 16  RGB-5-6-5 BE */
+    case V4L2_PIX_FMT_RGB565X:
+        return false;
+    /*  8  RGB-3-3-2 */
+    case V4L2_PIX_FMT_RGB332:
+        return false;
 
     /* Palette formats */
-    case V4L2_PIX_FMT_PAL8:    pixfmt_swscale = AV_PIX_FMT_PAL8;   /*  8  8-bit palette */
+    /*  8  8-bit palette */
+    case V4L2_PIX_FMT_PAL8:
+        pixfmt_swscale = AV_PIX_FMT_PAL8;
+        break;
 
     /* Luminance+Chrominance formats */
-    case V4L2_PIX_FMT_YUV32:   return false;                          /* 32  YUV-8-8-8-8   */
-    case V4L2_PIX_FMT_YUV444:  return false;                          /* 16  xxxxyyyy uuuuvvvv */
-    case V4L2_PIX_FMT_YUV555:  return false;                          /* 16  YUV-5-5-5     */
-    case V4L2_PIX_FMT_YUV565:  return false;                          /* 16  YUV-5-6-5     */
-    case V4L2_PIX_FMT_YUYV:    pixfmt_swscale = AV_PIX_FMT_YUYV422;   /* 16  YUV 4:2:2     */
-    case V4L2_PIX_FMT_YYUV:    return false;                          /* 16  YUV 4:2:2     */
-    case V4L2_PIX_FMT_YVYU:    return false;                          /* 16  YVU 4:2:2     */
-    case V4L2_PIX_FMT_UYVY:    pixfmt_swscale = AV_PIX_FMT_UYVY422;   /* 16  YUV 4:2:2     */
-    case V4L2_PIX_FMT_VYUY:    return false;                          /* 16  YUV 4:2:2     */
-    case V4L2_PIX_FMT_YUV422P: pixfmt_swscale = AV_PIX_FMT_YUV422P;   /* 16  YVU422 planar */
-    case V4L2_PIX_FMT_YUV411P: pixfmt_swscale = AV_PIX_FMT_YUV411P;   /* 16  YVU411 planar */
-    case V4L2_PIX_FMT_YVU420:  return false;                          /* 12  YVU 4:2:0     */
-    case V4L2_PIX_FMT_Y41P:    pixfmt_swscale = AV_PIX_FMT_UYYVYY411; /* 12  YUV 4:1:1     */
-    case V4L2_PIX_FMT_YUV420:  pixfmt_swscale = AV_PIX_FMT_YUV420P;   /* 12  YUV 4:2:0     */
-    case V4L2_PIX_FMT_YVU410:  return false;                          /*  9  YVU 4:1:0     */
-    case V4L2_PIX_FMT_YUV410:  pixfmt_swscale = AV_PIX_FMT_YUV410P;   /*  9  YUV 4:1:0     */
-    case V4L2_PIX_FMT_HI240:   return false;                          /*  8  8-bit color   */
-    case V4L2_PIX_FMT_HM12:    return false;                          /*  8  YUV 4:2:0 16x16 macroblocks */
+    /* 32  YUV-8-8-8-8 */
+    case V4L2_PIX_FMT_YUV32:
+        return false;
+    /* 16  xxxxyyyy uuuuvvvv */
+    case V4L2_PIX_FMT_YUV444:
+        return false;
+    /* 16  YUV-5-5-5 */
+    case V4L2_PIX_FMT_YUV555:
+        return false;
+    /* 16  YUV-5-6-5 */
+    case V4L2_PIX_FMT_YUV565:
+        return false;
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_YUYV:
+        pixfmt_swscale = AV_PIX_FMT_YUYV422;
+        break;
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_YYUV:
+        return false;
+    /* 16  YVU 4:2:2 */
+    case V4L2_PIX_FMT_YVYU:
+        return false;
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_UYVY:
+        pixfmt_swscale = AV_PIX_FMT_UYVY422;
+        break;
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_VYUY:
+        return false;
+    /* 16  YVU422 planar */
+    case V4L2_PIX_FMT_YUV422P:
+        pixfmt_swscale = AV_PIX_FMT_YUV422P;
+        break;
+    /* 16  YVU411 planar */
+    case V4L2_PIX_FMT_YUV411P:
+        pixfmt_swscale = AV_PIX_FMT_YUV411P;
+        break;
+    /* 12  YVU 4:2:0 */
+    case V4L2_PIX_FMT_YVU420:
+        return false;
+    /* 12  YUV 4:1:1 */
+    case V4L2_PIX_FMT_Y41P:
+        pixfmt_swscale = AV_PIX_FMT_UYYVYY411;
+        break;
+    /* 12  YUV 4:2:0 */
+    case V4L2_PIX_FMT_YUV420:
+        pixfmt_swscale = AV_PIX_FMT_YUV420P;
+        break;
+    /*  9  YVU 4:1:0 */
+    case V4L2_PIX_FMT_YVU410:
+        return false;
+    /*  9  YUV 4:1:0 */
+    case V4L2_PIX_FMT_YUV410:
+        pixfmt_swscale = AV_PIX_FMT_YUV410P;
+        break;
+    /*  8  8-bit color */
+    case V4L2_PIX_FMT_HI240:
+        return false;
+    /*  8  YUV 4:2:0 16x16 macroblocks */
+    case V4L2_PIX_FMT_HM12:
+        return false;
 
-    /* two planes -- one Y: one Cr + Cb interleaved  */
-    case V4L2_PIX_FMT_NV12: pixfmt_swscale = AV_PIX_FMT_NV12;    /* 12  Y/CbCr 4:2:0  */
-    case V4L2_PIX_FMT_NV21: pixfmt_swscale = AV_PIX_FMT_NV21;    /* 12  Y/CrCb 4:2:0  */
-    case V4L2_PIX_FMT_NV16: pixfmt_swscale = AV_PIX_FMT_YUV422P; /* 16  Y/CbCr 4:2:2  */
-    case V4L2_PIX_FMT_NV61: return false;                        /* 16  Y/CrCb 4:2:2  */
+    /* two planes -- one Y: one Cr + Cb interleaved */
+    /* 12  Y/CbCr 4:2:0 */
+    case V4L2_PIX_FMT_NV12:
+        pixfmt_swscale = AV_PIX_FMT_NV12;
+        break;
+    /* 12  Y/CrCb 4:2:0 */
+    case V4L2_PIX_FMT_NV21:
+        pixfmt_swscale = AV_PIX_FMT_NV21;
+        break;
+    /* 16  Y/CbCr 4:2:2 */
+    case V4L2_PIX_FMT_NV16:
+        pixfmt_swscale = AV_PIX_FMT_YUV422P;
+        break;
+    /* 16  Y/CrCb 4:2:2 */
+    case V4L2_PIX_FMT_NV61:
+        return false;
 
     /* Grey formats */
-    case V4L2_PIX_FMT_Y16:  pixfmt_swscale = AV_PIX_FMT_GRAY16LE;  /* 16  Greyscale     */
-    case V4L2_PIX_FMT_GREY: pixfmt_swscale = AV_PIX_FMT_GRAY8;     /*  8  Greyscale     */
+    /* 16  Greyscale */
+    case V4L2_PIX_FMT_Y16:
+        pixfmt_swscale = AV_PIX_FMT_GRAY16LE;
+        break;
+    /*  8  Greyscale */
+    case V4L2_PIX_FMT_GREY:
+        pixfmt_swscale = AV_PIX_FMT_GRAY8;
+        break;
 
     default:
+        MSG("Unknown pixel format %c%c%c%c",
+            (uint8_t)(pixfmt->pixelformat>> 0),
+            (uint8_t)(pixfmt->pixelformat>> 8),
+            (uint8_t)(pixfmt->pixelformat>>16),
+            (uint8_t)(pixfmt->pixelformat>>24));
         return false;
     }
 
     ENSURE(NULL !=
            (camera->sws_context =
             sws_getContext(// source
-                           pixfmt.width, pixfmt.height, pixfmt_swscale,
+                           pixfmt->width, pixfmt->height, pixfmt_swscale,
 
                            // destination
-                           pixfmt.width, pixfmt.height,
+                           pixfmt->width, pixfmt->height,
                            want_color ? AV_PIX_FMT_RGB24 : AV_PIX_FMT_GRAY8,
 
                            // misc stuff
@@ -362,7 +454,7 @@ bool dv4l_init(// out
 
     *camera = (dv4l_t){};
 
-    ENSURE( (camera->fd = open( device, O_RDWR, 0)) >= 0,
+    ENSURE_DETAILEDERR( (camera->fd = open( device, O_RDWR, 0)) >= 0,
             "Couldn't open video device '%s': %s",
             device,
             strerrordesc_np(errno));
@@ -374,11 +466,11 @@ bool dv4l_init(// out
 
     camera->streaming = streaming_requested;
     if(streaming_requested)
-        ENSURE( cap.capabilities & V4L2_CAP_STREAMING,
+        ENSURE_DETAILEDERR( cap.capabilities & V4L2_CAP_STREAMING,
                 "The caller requested streaming, but it's not available. read() is %savailable",
                 (cap.capabilities & V4L2_CAP_READWRITE) ? "" : "NOT " );
     else
-        ENSURE( cap.capabilities & V4L2_CAP_READWRITE,
+        ENSURE_DETAILEDERR( cap.capabilities & V4L2_CAP_READWRITE,
                 "The caller requested read() access (no streaming), but it's not available. streaming is %savailable",
                 (cap.capabilities & V4L2_CAP_STREAMING) ? "" : "NOT " );
 
@@ -394,7 +486,7 @@ bool dv4l_init(// out
 
     if(pixelformat_requested.choice == USE_REQUESTED_PIXELFORMAT)
     {
-        camera->want_color = is_pixelformat_color(pixelformat_requested.pixelformat)
+        camera->want_color = is_pixelformat_color(pixelformat_requested.pixelformat);
         camera->format.fmt.pix.pixelformat = pixelformat_requested.pixelformat;
     }
     else
@@ -405,18 +497,31 @@ bool dv4l_init(// out
                              camera->want_color));
     }
 
+    uint32_t pixelformat_did_set = camera->format.fmt.pix.pixelformat;
     ENSURE_IOCTL(camera->fd, VIDIOC_S_FMT, &camera->format);
+    if(pixelformat_did_set != camera->format.fmt.pix.pixelformat)
+    {
+        MSG("Warning: asked for pixel format %c%c%c%c but V4L2 gave us %c%c%c%c instead. Continuing",
+            (uint8_t)(pixelformat_did_set>> 0),
+            (uint8_t)(pixelformat_did_set>> 8),
+            (uint8_t)(pixelformat_did_set>>16),
+            (uint8_t)(pixelformat_did_set>>24),
+            (uint8_t)(camera->format.fmt.pix.pixelformat>> 0),
+            (uint8_t)(camera->format.fmt.pix.pixelformat>> 8),
+            (uint8_t)(camera->format.fmt.pix.pixelformat>>16),
+            (uint8_t)(camera->format.fmt.pix.pixelformat>>24));
+    }
 
-    ENSURE(camera->format.fmt.pix.field == V4L2_FIELD_NONE,
+    ENSURE_DETAILEDERR(camera->format.fmt.pix.field == V4L2_FIELD_NONE,
            "interlacing not yet supported");
 
     if(controls != NULL)
         for(int i=0; i<Ncontrols; i++)
-            ENSURE_IOCTL_DETAILEDERR(camera->fd, VIDIOC_S_CTRL, &controls[i],
+            ENSURE_IOCTL_DETAILEDERR(camera->fd, VIDIOC_S_CTRL, (struct v4l2_control*)&controls[i],
                                      "Error setting control %d to value %d",
                                      controls[i].id, controls[i].value);
 
-    if( streaming )
+    if( camera->streaming )
     {
         if( fps_requested > 0 )
         {
@@ -431,28 +536,28 @@ bool dv4l_init(// out
 
 
         struct v4l2_requestbuffers rb =
-            {.count  = NUM_STREAMING_MAX_REQUESTED,
+            {.count  = NUM_STREAMING_BUFFERS_MAX,
              .type   = V4L2_BUF_TYPE_VIDEO_CAPTURE,
              .memory = V4L2_MEMORY_MMAP};
         ENSURE_IOCTL_DETAILEDERR(camera->fd, VIDIOC_REQBUFS, &rb,
                      "Error requesting %d buffers",
-                     NUM_STREAMING_MAX_REQUESTED);
-        ENSURE( rb.count > 0,
+                     NUM_STREAMING_BUFFERS_MAX);
+        ENSURE_DETAILEDERR( rb.count > 0,
                 "Couldn't get any of the buffers I asked for: %s",
                 strerrordesc_np(errno));
 
-        for (int i = 0; i < rb.count; i++)
+        for (unsigned int i = 0; i < rb.count; i++)
         {
             struct v4l2_buffer buf = {.index  = i,
                                       .type   = rb.type,
                                       .memory = rb.memory};
             ENSURE_IOCTL(camera->fd, VIDIOC_QUERYBUF, &buf);
-            mmapped_buf_length[i] = buf.length;
-            mmapped_buf       [i] =
+            camera->mmapped_buf_length[i] = buf.length;
+            camera->mmapped_buf       [i] =
                 mmap(0,
                      buf.length, PROT_READ, MAP_SHARED, camera->fd,
                      buf.m.offset);
-            ENSURE(mmapped_buf[i] != MAP_FAILED);
+            ENSURE(camera->mmapped_buf[i] != MAP_FAILED);
 
             ENSURE_IOCTL(camera->fd, VIDIOC_QBUF, &buf);
         }
@@ -463,15 +568,15 @@ bool dv4l_init(// out
     {
         // When allocating the memory buffer, I leave room for padding. FFMPEG documentation
         // (avcodec.h):
-        //  * @warning The input buffer must be \c FF_INPUT_BUFFER_PADDING_SIZE larger than
+        //  * @warning The input buffer must be \c AV_INPUT_BUFFER_PADDING_SIZE larger than
         //  * the actual read bytes because some optimized bitstream readers read 32 or 64
         //  * bits at once and could read over the end.
         camera->allocated_buf_length =
-            camera->format.fmt.pix.sizeimage + FF_INPUT_BUFFER_PADDING_SIZE;
-        ENSURE((camera->buffer = malloc(camera->allocated_buf_length)) != NULL);
+            camera->format.fmt.pix.sizeimage + AV_INPUT_BUFFER_PADDING_SIZE;
+        ENSURE((camera->allocated_buf = malloc(camera->allocated_buf_length)) != NULL);
     }
 
-    ENSURE(decoder_init(&camera,
+    ENSURE(decoder_init(camera,
                         &camera->format.fmt.pix,
                         camera->want_color));
 
@@ -480,7 +585,7 @@ bool dv4l_init(// out
 
 void dv4l_deinit(dv4l_t* camera)
 {
-    if( camera->camera->fd > 0 )
+    if( camera->fd > 0 )
     {
         close( camera->fd );
         camera->fd = -1;
@@ -518,6 +623,12 @@ void dv4l_deinit(dv4l_t* camera)
         camera->av_frame = NULL;
     }
 
+    if(camera->av_packet)
+    {
+        av_free(camera->av_packet);
+        camera->av_packet = NULL;
+    }
+
     if(camera->sws_context)
     {
         sws_freeContext(camera->sws_context);
@@ -529,6 +640,12 @@ void dv4l_deinit(dv4l_t* camera)
 // latest one
 bool dv4l_flush_frames(dv4l_t* camera)
 {
+    // for ENSURE()
+    void cleanup(void)
+    {
+    }
+
+
     while(1)
     {
         struct pollfd fd =
@@ -536,7 +653,7 @@ bool dv4l_flush_frames(dv4l_t* camera)
              .events = POLLIN};
         int num_have_data;
 
-        ENSURE(0 > (num_have_data = poll(&fd, 1, 0)),
+        ENSURE_DETAILEDERR(0 > (num_have_data = poll(&fd, 1, 0)),
                "poll() failed reading the camera: %s!",
                strerrordesc_np(errno));
 
@@ -545,12 +662,12 @@ bool dv4l_flush_frames(dv4l_t* camera)
             return true;
 
         // There are frames to read, so I flush the queues
-        if( !streaming )
+        if( !camera->streaming )
         {
             // I try to read a bunch of data and throw it away. I know it won't
             // block because poll() said so. Then I poll() again until it says
             // there's nothing left
-            read(camera->fd, camera->buffer, allocated_buf_length);
+            read(camera->fd, camera->allocated_buf, camera->allocated_buf_length);
         }
         else
         {
@@ -598,15 +715,15 @@ bool dv4l_getframe(dv4l_t* camera,
     int            Nbytes_frame;
     unsigned char* bytes_frame;
 
-    if( !streaming )
+    if( !camera->streaming )
     {
         Nbytes_frame = camera->format.fmt.pix.sizeimage;
 
-        ENSURE(0 > read( camera->fd, camera->buffer, Nbytes_frame),
+        ENSURE_DETAILEDERR(0 > read( camera->fd, camera->allocated_buf, Nbytes_frame),
                "camera read() returned errno %s",
                strerrordesc_np(errno));
 
-        bytes_frame = camera->buffer;
+        bytes_frame = camera->allocated_buf;
         if(timestamp_us != NULL)
             // I don't know when the frame came in. I read it later
             *timestamp_us = 0;
@@ -616,7 +733,7 @@ bool dv4l_getframe(dv4l_t* camera,
         ENSURE_IOCTL(camera->fd, VIDIOC_DQBUF, &v4l2_buf);
         need_to_requeue_buffer = true;
 
-        bytes_frame = (unsigned char*)mmapped_buf[v4l2_buf.index];
+        bytes_frame = (unsigned char*)camera->mmapped_buf[v4l2_buf.index];
         Nbytes_frame = v4l2_buf.bytesused;
 
         int     s  = v4l2_buf.timestamp.tv_sec;
@@ -627,7 +744,7 @@ bool dv4l_getframe(dv4l_t* camera,
 
     // I now have the raw frame data in (bytes_frame, Nbytes_frame). I convert
 
-    unsigned char** scale_source;
+    const uint8_t * const * scale_source;
 
     // Extra variable needed to make sure that scale_stride has type int*
     int  pixfmt_bytesperline = camera->format.fmt.pix.bytesperline;
@@ -638,16 +755,16 @@ bool dv4l_getframe(dv4l_t* camera,
     {
         int frame_finished;
 
-        camera->av_packet.data = bytes_frame;
-        camera->av_packet.size = Nbytes_frame;
+        camera->av_packet->data = bytes_frame;
+        camera->av_packet->size = Nbytes_frame;
         int decode_result  = avcodec_decode_video2(camera->av_codec_context,
                                                    camera->av_frame,
                                                    &frame_finished,
-                                                   &av_packet);
-        ENSURE(decode_result >= 0 && frame_finished,
+                                                   camera->av_packet);
+        ENSURE_DETAILEDERR(decode_result >= 0 && frame_finished,
                "error decoding ffmpeg frame");
 
-        scale_source = camera->av_frame->data;
+        scale_source = (const uint8_t*const*)camera->av_frame->data;
         scale_stride = camera->av_frame->linesize;
 
         // decoder_init() may not have created the sws context yet. I have the
@@ -671,7 +788,7 @@ bool dv4l_getframe(dv4l_t* camera,
     }
     else
     {
-        scale_source = &bytes_frame;
+        scale_source = (const uint8_t*const*)&bytes_frame;
         scale_stride = &pixfmt_bytesperline;
     }
 
@@ -681,10 +798,10 @@ bool dv4l_getframe(dv4l_t* camera,
               // source
               scale_source, scale_stride, 0, camera->format.fmt.pix.height,
               // destination buffer, stride
-              image,
+              (uint8_t*const*)&image,
               camera->want_color ?
-              &(int){3*camera->format.fmt.pix.height} :
-              &(int){  camera->format.fmt.pix.height});
+              &(int){3*camera->format.fmt.pix.width} :
+              &(int){  camera->format.fmt.pix.width});
 
     return true;
 }

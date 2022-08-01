@@ -7,11 +7,12 @@ int main(int argc, char* argv[])
     dv4l_t camera;
 
     dv4l_pixelformat_choice_t format_choice =
-        {.choice = BEST_GRAYSCALE_PIXELFORMAT};
+        {.choice      = USE_REQUESTED_PIXELFORMAT,
+         .pixelformat = V4L2_PIX_FMT_JPEG};
 
 
-    const int W = 640;
-    const int H = 480;
+    int W = -1;
+    int H = -1;
 
     if(!dv4l_init(&camera,
                   "/dev/video0",
@@ -19,7 +20,7 @@ int main(int argc, char* argv[])
                   W,H,
 
                   // fps
-                  10,
+                  1,
 
                   // stream
                   true,
@@ -31,21 +32,24 @@ int main(int argc, char* argv[])
         return 1;
 
 
-    char* buf = malloc(W*H);
+    W = camera.format.fmt.pix.width;
+    H = camera.format.fmt.pix.height;
+
+    char* buf = malloc(W*H*3);
     if(buf == NULL)
         return 1;
 
     for(int i=0; i<5; i++)
     {
-        if(!dv4l_getframe(camera, buf, NULL))
+        if(!dv4l_getframe(&camera, buf, NULL))
             return 1;
 
         char filename[128];
-        sprintf(filename, "/tmp/frame%d.pgm", i);
+        sprintf(filename, "/tmp/frame%d.ppm", i);
 
         FILE* fp = fopen(filename, "w");
-        fprintf(fp, "P2\n%d %d\n255\n", W, H);
-        fwrite(buf, 1, W*H, fp);
+        fprintf(fp, "P6\n%d %d\n255\n", W, H);
+        fwrite(buf, 1, W*H*3, fp);
         fclose(fp);
     }
 

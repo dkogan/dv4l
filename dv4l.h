@@ -5,14 +5,16 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <linux/videodev2.h>
 
+#include <stdbool.h>
 
 #define NUM_STREAMING_BUFFERS_MAX 16
 
 typedef struct
 {
     int                        fd;
-    v4l2_format                format;
+    struct v4l2_format         format;
     bool                       streaming  : 1;
     bool                       want_color : 1;
     // used if streaming
@@ -37,7 +39,7 @@ typedef struct
     // not using it for that currently. This is needed at all times. Even if the
     // camera already spits out unpacked data I still use the swscale library
     // for simplicity. It's just a memcpy() in that case
-    SwsContext*     sws_context;
+    struct SwsContext* sws_context;
 
 } dv4l_t;
 
@@ -79,7 +81,7 @@ void dv4l_deinit(dv4l_t* camera);
 
 // Throw out all available frames, so that the next one that comes in is the
 // latest one
-bool dv4l_flush_frames(dv4l_t* camera)
+bool dv4l_flush_frames(dv4l_t* camera);
 
 bool dv4l_getframe(dv4l_t* camera,
                    char* image,
