@@ -1,7 +1,5 @@
 #pragma once
 
-#warning MOVE THESE TO THE C FILE
-
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
