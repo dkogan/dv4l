@@ -816,5 +816,7 @@ bool dv4l_getframe(dv4l_t* camera,
               &(int){3*camera->format.fmt.pix.width} :
               &(int){  camera->format.fmt.pix.width});
 
+    cleanup();
+
     return true;
 }
