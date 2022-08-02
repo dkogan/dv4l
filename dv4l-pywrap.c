@@ -166,16 +166,27 @@ camera_get_frame(camera* self, PyObject* args, PyObject* kwargs)
     return result;
 }
 
+static PyObject*
+camera_get_fd(camera* self, PyObject* args)
+{
+    return
+        Py_BuildValue("i", self->camera.fd);
+}
+
 static const char camera_docstring[] =
 #include "camera.docstring.h"
     ;
 static const char camera_get_frame_docstring[] =
 #include "camera_get_frame.docstring.h"
     ;
+static const char camera_get_fd_docstring[] =
+#include "camera_get_fd.docstring.h"
+    ;
 
 static PyMethodDef camera_methods[] =
     {
         PYMETHODDEF_ENTRY(camera_, get_frame, METH_VARARGS | METH_KEYWORDS),
+        PYMETHODDEF_ENTRY(camera_, get_fd,    METH_VARARGS),
         {}
     };
 
