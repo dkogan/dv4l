@@ -278,9 +278,6 @@ bool decoder_init(// out
     case V4L2_PIX_FMT_RGB24:
         camera->av_pixel_format = AV_PIX_FMT_RGB24;
         break;
-    /* 16  xxxxrrrr ggggbbbb */
-    case V4L2_PIX_FMT_RGB444:
-        return false;
     /* 16  RGB-5-5-5 */
     case V4L2_PIX_FMT_RGB555:
         camera->av_pixel_format = AV_PIX_FMT_RGB555;
@@ -289,15 +286,6 @@ bool decoder_init(// out
     case V4L2_PIX_FMT_RGB565:
         camera->av_pixel_format = AV_PIX_FMT_RGB565;
         break;
-    /* 16  RGB-5-5-5 BE */
-    case V4L2_PIX_FMT_RGB555X:
-        return false;
-    /* 16  RGB-5-6-5 BE */
-    case V4L2_PIX_FMT_RGB565X:
-        return false;
-    /*  8  RGB-3-3-2 */
-    case V4L2_PIX_FMT_RGB332:
-        return false;
 
     /* Palette formats */
     /*  8  8-bit palette */
@@ -306,35 +294,14 @@ bool decoder_init(// out
         break;
 
     /* Luminance+Chrominance formats */
-    /* 32  YUV-8-8-8-8 */
-    case V4L2_PIX_FMT_YUV32:
-        return false;
-    /* 16  xxxxyyyy uuuuvvvv */
-    case V4L2_PIX_FMT_YUV444:
-        return false;
-    /* 16  YUV-5-5-5 */
-    case V4L2_PIX_FMT_YUV555:
-        return false;
-    /* 16  YUV-5-6-5 */
-    case V4L2_PIX_FMT_YUV565:
-        return false;
     /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_YUYV:
         camera->av_pixel_format = AV_PIX_FMT_YUYV422;
         break;
     /* 16  YUV 4:2:2 */
-    case V4L2_PIX_FMT_YYUV:
-        return false;
-    /* 16  YVU 4:2:2 */
-    case V4L2_PIX_FMT_YVYU:
-        return false;
-    /* 16  YUV 4:2:2 */
     case V4L2_PIX_FMT_UYVY:
         camera->av_pixel_format = AV_PIX_FMT_UYVY422;
         break;
-    /* 16  YUV 4:2:2 */
-    case V4L2_PIX_FMT_VYUY:
-        return false;
     /* 16  YVU422 planar */
     case V4L2_PIX_FMT_YUV422P:
         camera->av_pixel_format = AV_PIX_FMT_YUV422P;
@@ -343,9 +310,6 @@ bool decoder_init(// out
     case V4L2_PIX_FMT_YUV411P:
         camera->av_pixel_format = AV_PIX_FMT_YUV411P;
         break;
-    /* 12  YVU 4:2:0 */
-    case V4L2_PIX_FMT_YVU420:
-        return false;
     /* 12  YUV 4:1:1 */
     case V4L2_PIX_FMT_Y41P:
         camera->av_pixel_format = AV_PIX_FMT_UYYVYY411;
@@ -354,19 +318,10 @@ bool decoder_init(// out
     case V4L2_PIX_FMT_YUV420:
         camera->av_pixel_format = AV_PIX_FMT_YUV420P;
         break;
-    /*  9  YVU 4:1:0 */
-    case V4L2_PIX_FMT_YVU410:
-        return false;
     /*  9  YUV 4:1:0 */
     case V4L2_PIX_FMT_YUV410:
         camera->av_pixel_format = AV_PIX_FMT_YUV410P;
         break;
-    /*  8  8-bit color */
-    case V4L2_PIX_FMT_HI240:
-        return false;
-    /*  8  YUV 4:2:0 16x16 macroblocks */
-    case V4L2_PIX_FMT_HM12:
-        return false;
 
     /* two planes -- one Y: one Cr + Cb interleaved */
     /* 12  Y/CbCr 4:2:0 */
@@ -381,9 +336,6 @@ bool decoder_init(// out
     case V4L2_PIX_FMT_NV16:
         camera->av_pixel_format = AV_PIX_FMT_YUV422P;
         break;
-    /* 16  Y/CrCb 4:2:2 */
-    case V4L2_PIX_FMT_NV61:
-        return false;
 
     /* Grey formats */
     /* 16  Greyscale */
@@ -396,7 +348,7 @@ bool decoder_init(// out
         break;
 
     default:
-        MSG("Unknown pixel format %c%c%c%c",
+        MSG("Selected pixel format \"%c%c%c%c\" cannot be decoded by libswscale. Giving up",
             (uint8_t)(pixfmt->pixelformat>> 0),
             (uint8_t)(pixfmt->pixelformat>> 8),
             (uint8_t)(pixfmt->pixelformat>>16),
