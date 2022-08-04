@@ -59,192 +59,80 @@ int ioctl_persistent( int fd, unsigned long request, void* arg)
     return r;
 }
 
-
-
-// pixel formats in order of decreasing desireability. Sorta arbitrary. I
-// favor colors, higher bitrates and lower compression
-static const
-uint32_t pixfmts_color[] =
-    {
-        /* RGB formats */
-        V4L2_PIX_FMT_BGR32,        /* 32  BGR-8-8-8-8   */
-        V4L2_PIX_FMT_RGB32,        /* 32  RGB-8-8-8-8   */
-        V4L2_PIX_FMT_BGR24,        /* 24  BGR-8-8-8     */
-        V4L2_PIX_FMT_RGB24,        /* 24  RGB-8-8-8     */
-        V4L2_PIX_FMT_RGB444,       /* 16  xxxxrrrr ggggbbbb */
-        V4L2_PIX_FMT_RGB555,       /* 16  RGB-5-5-5     */
-        V4L2_PIX_FMT_RGB565,       /* 16  RGB-5-6-5     */
-        V4L2_PIX_FMT_RGB555X,      /* 16  RGB-5-5-5 BE  */
-        V4L2_PIX_FMT_RGB565X,      /* 16  RGB-5-6-5 BE  */
-        V4L2_PIX_FMT_RGB332,       /*  8  RGB-3-3-2     */
-
-        /* Palette formats */
-        V4L2_PIX_FMT_PAL8,         /*  8  8-bit palette */
-
-        /* Luminance+Chrominance formats */
-        V4L2_PIX_FMT_YUV32,        /* 32  YUV-8-8-8-8   */
-        V4L2_PIX_FMT_YUV444,       /* 16  xxxxyyyy uuuuvvvv */
-        V4L2_PIX_FMT_YUV555,       /* 16  YUV-5-5-5     */
-        V4L2_PIX_FMT_YUV565,       /* 16  YUV-5-6-5     */
-        V4L2_PIX_FMT_YUYV,         /* 16  YUV 4:2:2     */
-        V4L2_PIX_FMT_YYUV,         /* 16  YUV 4:2:2     */
-        V4L2_PIX_FMT_YVYU,         /* 16 YVU 4:2:2 */
-        V4L2_PIX_FMT_UYVY,         /* 16  YUV 4:2:2     */
-        V4L2_PIX_FMT_VYUY,         /* 16  YUV 4:2:2     */
-        V4L2_PIX_FMT_YUV422P,      /* 16  YVU422 planar */
-        V4L2_PIX_FMT_YUV411P,      /* 16  YVU411 planar */
-        V4L2_PIX_FMT_YVU420,       /* 12  YVU 4:2:0     */
-        V4L2_PIX_FMT_Y41P,         /* 12  YUV 4:1:1     */
-        V4L2_PIX_FMT_YUV420,       /* 12  YUV 4:2:0     */
-        V4L2_PIX_FMT_YVU410,       /*  9  YVU 4:1:0     */
-        V4L2_PIX_FMT_YUV410,       /*  9  YUV 4:1:0     */
-        V4L2_PIX_FMT_HI240,        /*  8  8-bit color   */
-        V4L2_PIX_FMT_HM12,         /*  8  YUV 4:2:0 16x16 macroblocks */
-
-        /* two planes -- one Y, one Cr + Cb interleaved  */
-        V4L2_PIX_FMT_NV12,         /* 12  Y/CbCr 4:2:0  */
-        V4L2_PIX_FMT_NV21,         /* 12  Y/CrCb 4:2:0  */
-        V4L2_PIX_FMT_NV16,         /* 16  Y/CbCr 4:2:2  */
-        V4L2_PIX_FMT_NV61,         /* 16  Y/CrCb 4:2:2  */
-
-        /* Bayer formats - see http://www.siliconimaging.com/RGB%20Bayer.htm */
-        V4L2_PIX_FMT_SGRBG10,      /* 10bit raw bayer */
-        /*
-         * 10bit raw bayer, expanded to 16 bits
-         * xxxxrrrrrrrrrrxxxxgggggggggg xxxxggggggggggxxxxbbbbbbbbbb...
-         */
-        V4L2_PIX_FMT_SBGGR16,      /* 16  BGBG.. GRGR.. */
-        /* 10bit raw bayer DPCM compressed to 8 bits */
-        V4L2_PIX_FMT_SGRBG10DPCM8,
-        V4L2_PIX_FMT_SBGGR8,       /*  8  BGBG.. GRGR.. */
-        V4L2_PIX_FMT_SGBRG8,       /*  8  GBGB.. RGRG.. */
-        V4L2_PIX_FMT_SGRBG8,       /*  8  GRGR.. BGBG.. */
-
-        /* compressed formats */
-        V4L2_PIX_FMT_MJPEG,        /* Motion-JPEG   */
-        V4L2_PIX_FMT_JPEG,         /* JFIF JPEG     */
-        V4L2_PIX_FMT_DV,           /* 1394          */
-        V4L2_PIX_FMT_MPEG,         /* MPEG-1/2/4    */
-
-        /*  Vendor-specific formats   */
-        V4L2_PIX_FMT_WNVA,         /* Winnov hw compress */
-        V4L2_PIX_FMT_SN9C10X,      /* SN9C10x compression */
-        V4L2_PIX_FMT_SN9C20X_I420, /* SN9C20x YUV 4:2:0 */
-        V4L2_PIX_FMT_PWC1,         /* pwc older webcam */
-        V4L2_PIX_FMT_PWC2,         /* pwc newer webcam */
-        V4L2_PIX_FMT_ET61X251,     /* ET61X251 compression */
-        V4L2_PIX_FMT_SPCA501,      /* YUYV per line */
-        V4L2_PIX_FMT_SPCA505,      /* YYUV per line */
-        V4L2_PIX_FMT_SPCA508,      /* YUVY per line */
-        V4L2_PIX_FMT_SPCA561,      /* compressed GBRG bayer */
-        V4L2_PIX_FMT_PAC207,       /* compressed BGGR bayer */
-        V4L2_PIX_FMT_MR97310A,     /* compressed BGGR bayer */
-        V4L2_PIX_FMT_SQ905C,       /* compressed RGGB bayer */
-        V4L2_PIX_FMT_PJPG,         /* Pixart 73xx JPEG */
-        V4L2_PIX_FMT_OV511,        /* ov511 JPEG */
-        V4L2_PIX_FMT_OV518,        /* ov518 JPEG */
-    };
-
-static const
-uint32_t pixfmts_gray[] =
-    {
-        /* Grey formats */
-        V4L2_PIX_FMT_Y16,  /* 16  Greyscale     */
-        V4L2_PIX_FMT_GREY, /*  8  Greyscale     */
-    };
-
-static bool is_pixelformat_color(const dv4l_fourcc_t* dv4l_fourcc)
-{
-    for(unsigned int i=0; i<sizeof(pixfmts_color) / sizeof(pixfmts_color[0]); i++)
-        if(pixfmts_color[i] == dv4l_fourcc->u)
-            return true;
-
-    for(unsigned int i=0; i<sizeof(pixfmts_gray) / sizeof(pixfmts_gray[0]); i++)
-        if(pixfmts_gray [i] == dv4l_fourcc->u)
-            return true;
-
-    MSG("Unknown pixel format %4s. Will return grayscale images just in case",
-        dv4l_fourcc->s);
-    return false;
-}
-
 static
-bool pixfmt_select(// out
-                   dv4l_fourcc_t* dv4l_fourcc,
-                   // in
-                   int fd,
-                   bool want_color)
+enum AVPixelFormat pixelformat_av_from_v4l(dv4l_fourcc_t fmt)
 {
-    int pixfmt_cost(uint32_t pixfmt, bool want_color)
+    switch(fmt.u)
     {
-        // return the cost if there's a match. We add a cost penalty for color modes
-        // when we wanted grayscale and vice-versa
-        for(unsigned int i=0; i<sizeof(pixfmts_color) / sizeof(pixfmts_color[0]); i++)
-            if(pixfmts_color[i] == pixfmt) return i + ( want_color ? 0 : 10000);
+    /* RGB formats */
+    /* 32  BGR-8-8-8-8 */
+    case V4L2_PIX_FMT_BGR32:   return AV_PIX_FMT_BGR32;
+    /* 32  RGB-8-8-8-8 */
+    case V4L2_PIX_FMT_RGB32:   return AV_PIX_FMT_RGB32;
+    /* 24  BGR-8-8-8 */
+    case V4L2_PIX_FMT_BGR24:   return AV_PIX_FMT_BGR24;
+    /* 24  RGB-8-8-8 */
+    case V4L2_PIX_FMT_RGB24:   return AV_PIX_FMT_RGB24;
+    /* 16  RGB-5-5-5 */
+    case V4L2_PIX_FMT_RGB555:  return AV_PIX_FMT_RGB555;
+    /* 16  RGB-5-6-5 */
+    case V4L2_PIX_FMT_RGB565:  return AV_PIX_FMT_RGB565;
 
-        for(unsigned int i=0; i<sizeof(pixfmts_gray) / sizeof(pixfmts_gray[0]); i++)
-            if(pixfmts_gray [i] == pixfmt) return i + (!want_color ? 0 : 10000);
+    /* Palette formats */
+    /*  8  8-bit palette */
+    case V4L2_PIX_FMT_PAL8:    return AV_PIX_FMT_PAL8;
 
-        return -1;
+    /* Luminance+Chrominance formats */
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_YUYV:    return AV_PIX_FMT_YUYV422;
+    /* 16  YUV 4:2:2 */
+    case V4L2_PIX_FMT_UYVY:    return AV_PIX_FMT_UYVY422;
+    /* 16  YVU422 planar */
+    case V4L2_PIX_FMT_YUV422P: return AV_PIX_FMT_YUV422P;
+    /* 16  YVU411 planar */
+    case V4L2_PIX_FMT_YUV411P: return AV_PIX_FMT_YUV411P;
+    /* 12  YUV 4:1:1 */
+    case V4L2_PIX_FMT_Y41P:    return AV_PIX_FMT_UYYVYY411;
+    /* 12  YUV 4:2:0 */
+    case V4L2_PIX_FMT_YUV420:  return AV_PIX_FMT_YUV420P;
+    /*  9  YUV 4:1:0 */
+    case V4L2_PIX_FMT_YUV410:  return AV_PIX_FMT_YUV410P;
+
+    /* two planes -- one Y: one Cr + Cb interleaved */
+    /* 12  Y/CbCr 4:2:0 */
+    case V4L2_PIX_FMT_NV12:    return AV_PIX_FMT_NV12;
+    /* 12  Y/CrCb 4:2:0 */
+    case V4L2_PIX_FMT_NV21:    return AV_PIX_FMT_NV21;
+    /* 16  Y/CbCr 4:2:2 */
+    case V4L2_PIX_FMT_NV16:    return AV_PIX_FMT_YUV422P;
+
+    /* Grey formats */
+    /* 16  Greyscale */
+    case V4L2_PIX_FMT_Y16:     return AV_PIX_FMT_GRAY16LE;
+    /*  8  Greyscale */
+    case V4L2_PIX_FMT_GREY:    return AV_PIX_FMT_GRAY8;
     }
 
-
-
-
-    dv4l_fourcc->u = 0;
-
-    int pixfmt_best_cost = INT_MAX;
-
-    for( struct v4l2_fmtdesc fmtdesc = {.index = 0,
-                                        .type  = V4L2_BUF_TYPE_VIDEO_CAPTURE};
-         ;
-         fmtdesc.index++ )
-    {
-        if(ioctl_persistent( fd, VIDIOC_ENUM_FMT, &fmtdesc) < 0)
-        {
-            if(errno == EINVAL)
-                // No more formats left. done. Return the best match I found so
-                // far
-                return true;
-
-            // Something bad happened
-            MSG("Error querying pixel format %d: %s",
-                fmtdesc.index,
-                strerrordesc_np(errno));
-            return false;
-        }
-
-        int cost = pixfmt_cost(fmtdesc.pixelformat, want_color);
-        if(0 <= cost &&
-           cost < pixfmt_best_cost)
-        {
-            // Best one I've seen so far. Use it.
-            pixfmt_best_cost = cost;
-            dv4l_fourcc->u   = fmtdesc.pixelformat;
-        }
-    }
-
-    MSG("Getting here is a bug");
+    MSG("Selected pixel format \"%4s\" cannot be decoded by libswscale. Giving up",
+        fmt.s);
+    return AV_PIX_FMT_NONE;
 }
-
 
 static
 bool decoder_init(// out
                   dv4l_t* camera,
                   // in
-                  const struct v4l2_pix_format* pixfmt,
-                  bool want_color)
+                  dv4l_fourcc_t pixelformat_input,
+                  int width, int height)
 {
     // for ENSURE()
     void cleanup(void)
     {
     }
 
-    const dv4l_fourcc_t dv4l_fourcc = {.u = pixfmt->pixelformat};
-
     // swscale can't interpret the pixel format directly. Can avcodec do it and
     // THEN feed swscale?
-    if(dv4l_fourcc.u == V4L2_PIX_FMT_JPEG)
+    if(pixelformat_input.u == V4L2_PIX_FMT_JPEG)
     {
         ENSURE(NULL != (camera->av_packet        = av_packet_alloc()));
         ENSURE(NULL != (camera->av_codec         = avcodec_find_decoder(AV_CODEC_ID_MJPEG)));
@@ -259,109 +147,17 @@ bool decoder_init(// out
     }
 
 
-
-    switch(dv4l_fourcc.u)
-    {
-    /* RGB formats */
-    /* 32  BGR-8-8-8-8 */
-    case V4L2_PIX_FMT_BGR32:
-        camera->av_pixelformat = AV_PIX_FMT_BGR32;
-        break;
-    /* 32  RGB-8-8-8-8 */
-    case V4L2_PIX_FMT_RGB32:
-        camera->av_pixelformat = AV_PIX_FMT_RGB32;
-        break;
-    /* 24  BGR-8-8-8 */
-    case V4L2_PIX_FMT_BGR24:
-        camera->av_pixelformat = AV_PIX_FMT_BGR24;
-        break;
-    /* 24  RGB-8-8-8 */
-    case V4L2_PIX_FMT_RGB24:
-        camera->av_pixelformat = AV_PIX_FMT_RGB24;
-        break;
-    /* 16  RGB-5-5-5 */
-    case V4L2_PIX_FMT_RGB555:
-        camera->av_pixelformat = AV_PIX_FMT_RGB555;
-        break;
-    /* 16  RGB-5-6-5 */
-    case V4L2_PIX_FMT_RGB565:
-        camera->av_pixelformat = AV_PIX_FMT_RGB565;
-        break;
-
-    /* Palette formats */
-    /*  8  8-bit palette */
-    case V4L2_PIX_FMT_PAL8:
-        camera->av_pixelformat = AV_PIX_FMT_PAL8;
-        break;
-
-    /* Luminance+Chrominance formats */
-    /* 16  YUV 4:2:2 */
-    case V4L2_PIX_FMT_YUYV:
-        camera->av_pixelformat = AV_PIX_FMT_YUYV422;
-        break;
-    /* 16  YUV 4:2:2 */
-    case V4L2_PIX_FMT_UYVY:
-        camera->av_pixelformat = AV_PIX_FMT_UYVY422;
-        break;
-    /* 16  YVU422 planar */
-    case V4L2_PIX_FMT_YUV422P:
-        camera->av_pixelformat = AV_PIX_FMT_YUV422P;
-        break;
-    /* 16  YVU411 planar */
-    case V4L2_PIX_FMT_YUV411P:
-        camera->av_pixelformat = AV_PIX_FMT_YUV411P;
-        break;
-    /* 12  YUV 4:1:1 */
-    case V4L2_PIX_FMT_Y41P:
-        camera->av_pixelformat = AV_PIX_FMT_UYYVYY411;
-        break;
-    /* 12  YUV 4:2:0 */
-    case V4L2_PIX_FMT_YUV420:
-        camera->av_pixelformat = AV_PIX_FMT_YUV420P;
-        break;
-    /*  9  YUV 4:1:0 */
-    case V4L2_PIX_FMT_YUV410:
-        camera->av_pixelformat = AV_PIX_FMT_YUV410P;
-        break;
-
-    /* two planes -- one Y: one Cr + Cb interleaved */
-    /* 12  Y/CbCr 4:2:0 */
-    case V4L2_PIX_FMT_NV12:
-        camera->av_pixelformat = AV_PIX_FMT_NV12;
-        break;
-    /* 12  Y/CrCb 4:2:0 */
-    case V4L2_PIX_FMT_NV21:
-        camera->av_pixelformat = AV_PIX_FMT_NV21;
-        break;
-    /* 16  Y/CbCr 4:2:2 */
-    case V4L2_PIX_FMT_NV16:
-        camera->av_pixelformat = AV_PIX_FMT_YUV422P;
-        break;
-
-    /* Grey formats */
-    /* 16  Greyscale */
-    case V4L2_PIX_FMT_Y16:
-        camera->av_pixelformat = AV_PIX_FMT_GRAY16LE;
-        break;
-    /*  8  Greyscale */
-    case V4L2_PIX_FMT_GREY:
-        camera->av_pixelformat = AV_PIX_FMT_GRAY8;
-        break;
-
-    default:
-        MSG("Selected pixel format \"%4s\" cannot be decoded by libswscale. Giving up",
-            dv4l_fourcc.s);
-        return false;
-    }
+    ENSURE_DETAILEDERR(camera->av_pixelformat_input != AV_PIX_FMT_NONE,
+                       "I have no AV pixel format and no decoder either. Probably I need some not-yet-implemented decoder. Input fourcc is \"%4s\"",
+                       pixelformat_input.s);
 
     ENSURE(NULL !=
            (camera->sws_context =
             sws_getContext(// source
-                           pixfmt->width, pixfmt->height, camera->av_pixelformat,
+                           width, height, camera->av_pixelformat_input,
 
                            // destination
-                           pixfmt->width, pixfmt->height,
-                           want_color ? AV_PIX_FMT_RGB24 : AV_PIX_FMT_GRAY8,
+                           width, height, camera->av_pixelformat_output,
 
                            // misc stuff
                            SWS_POINT, NULL, NULL, NULL)));
@@ -387,9 +183,12 @@ bool dv4l_init(// out
                // fps_requested. If false: we read() a frame whenever we like
                bool                      streaming_requested,
 
-               // We either ask fora specific pixel format from the camera, or
-               // we pick the best one we've got
-               dv4l_pixelformat_choice_t dv4l_pixelformat_choice,
+               // The input pixel format is a suggestion. The driver may refuse
+               // or it may select something else (a warning will be printed in
+               // that case). In the special case of pixelformat_input.u == 0,
+               // we try to pick the best format
+               dv4l_fourcc_t pixelformat_input,
+               dv4l_fourcc_t pixelformat_output,
 
                const struct v4l2_control* controls,
                const int Ncontrols)
@@ -402,6 +201,15 @@ bool dv4l_init(// out
 
 
     *camera = (dv4l_t){};
+
+    ENSURE_DETAILEDERR(pixelformat_output.u == V4L2_PIX_FMT_BGR24 ||
+                       pixelformat_output.u == V4L2_PIX_FMT_RGB24 ||
+                       pixelformat_output.u == V4L2_PIX_FMT_GREY ||
+                       pixelformat_output.u == V4L2_PIX_FMT_Y16,
+                       "I only support Y8, Y16, BGR and RGB output pixel formats");
+
+    camera->av_pixelformat_output = pixelformat_av_from_v4l(pixelformat_output);
+    ENSURE(camera->av_pixelformat_output != AV_PIX_FMT_NONE);
 
     ENSURE_DETAILEDERR( (camera->fd = open( device, O_RDWR, 0)) >= 0,
             "Couldn't open video device '%s': %s",
@@ -423,6 +231,15 @@ bool dv4l_init(// out
                 "The caller requested read() access (no streaming), but it's not available. streaming is %savailable",
                 (cap.capabilities & V4L2_CAP_STREAMING) ? "" : "NOT " );
 
+    if(pixelformat_input.u == 0)
+    {
+        // The caller is asking us to pick a pixel format. I take the first one
+        struct v4l2_fmtdesc fmtdesc = {.index = 0,
+                                       .type  = V4L2_BUF_TYPE_VIDEO_CAPTURE};
+        ENSURE_IOCTL( camera->fd, VIDIOC_ENUM_FMT, &fmtdesc);
+        pixelformat_input.u = fmtdesc.pixelformat;
+    }
+
     // If asked for the biggest possible images, I ask the driver for an
     // unreasonable upper bound of what I want. The driver will change the
     // passed-in parameters to whatever it is actually capable of
@@ -433,32 +250,27 @@ bool dv4l_init(// out
                      .height      = height_requested <= 0 ? 100000 : height_requested,
                      .field       = V4L2_FIELD_NONE} }; // no interlacing
 
-    dv4l_fourcc_t pixelformat_requesting;
+    dv4l_fourcc_t* pixelformat_did_set =
+        (dv4l_fourcc_t*)&camera->format.fmt.pix.pixelformat;
+    *pixelformat_did_set = pixelformat_input;
 
-    if(dv4l_pixelformat_choice.choice == USE_REQUESTED_PIXELFORMAT)
+    ENSURE_IOCTL(camera->fd, VIDIOC_S_FMT, &camera->format);
+    if(pixelformat_did_set->u != pixelformat_input.u)
     {
-        camera->want_color = is_pixelformat_color(&dv4l_pixelformat_choice.pixelformat_fourcc);
-        pixelformat_requesting = dv4l_pixelformat_choice.pixelformat_fourcc;
+        MSG("Warning: asked for pixel format \"%4s\" but V4L2 gave us \"%4s\" instead. Continuing",
+            pixelformat_input.s,
+            pixelformat_did_set->s);
     }
     else
     {
-        camera->want_color = dv4l_pixelformat_choice.choice == BEST_COLOR_PIXELFORMAT;
-        ENSURE(pixfmt_select(&pixelformat_requesting,
-                             camera->fd,
-                             camera->want_color));
+        MSG("Info: input pixel format: \"%4s\"",
+            pixelformat_input.s);
     }
 
-    dv4l_fourcc_t* pixelformat_did_set =
-        (dv4l_fourcc_t*)&camera->format.fmt.pix.pixelformat;
-    *pixelformat_did_set = pixelformat_requesting;
-        
-    ENSURE_IOCTL(camera->fd, VIDIOC_S_FMT, &camera->format);
-    if(pixelformat_did_set->u != pixelformat_requesting.u)
-    {
-        MSG("Warning: asked for pixel format \"%4s\" but V4L2 gave us \"%4s\" instead. Continuing",
-            pixelformat_requesting.s,
-            pixelformat_did_set->s);
-    }
+    pixelformat_input = *pixelformat_did_set;
+    camera->av_pixelformat_input = pixelformat_av_from_v4l(pixelformat_input);
+    // "camera->av_pixelformat_input == AV_PIX_FMT_NONE" means we need to decode
+    // the video stream.
 
     ENSURE_DETAILEDERR(camera->format.fmt.pix.field == V4L2_FIELD_NONE,
            "interlacing not yet supported");
@@ -525,8 +337,9 @@ bool dv4l_init(// out
     }
 
     ENSURE(decoder_init(camera,
-                        &camera->format.fmt.pix,
-                        camera->want_color));
+                        pixelformat_input,
+                        camera->format.fmt.pix.width,
+                        camera->format.fmt.pix.height));
 
     return true;
 }
@@ -731,7 +544,7 @@ bool dv4l_getframe(dv4l_t* camera,
                                    // destination
                                    camera->format.fmt.pix.width,
                                    camera->format.fmt.pix.height,
-                                   camera->want_color ? AV_PIX_FMT_RGB24 : AV_PIX_FMT_GRAY8,
+                                   camera->av_pixelformat_output,
 
                                    // misc stuff
                                    SWS_POINT, NULL, NULL, NULL)));
@@ -745,7 +558,7 @@ bool dv4l_getframe(dv4l_t* camera,
 
         ENSURE(0 < av_image_fill_arrays(scale_source_value, scale_stride_value,
                                         bytes_frame,
-                                        camera->av_pixelformat,
+                                        camera->av_pixelformat_input,
                                         camera->format.fmt.pix.width,
                                         camera->format.fmt.pix.height,
                                         1) );
@@ -754,14 +567,16 @@ bool dv4l_getframe(dv4l_t* camera,
         scale_stride = scale_stride_value;
     }
 
+    bool want_color =
+        camera->av_pixelformat_output == AV_PIX_FMT_BGR24 ||
+        camera->av_pixelformat_output == AV_PIX_FMT_RGB24;
 
-    // This is ALWAYS needed
     sws_scale(camera->sws_context,
               // source
               scale_source, scale_stride, 0, camera->format.fmt.pix.height,
               // destination buffer, stride
               (uint8_t*const*)&image,
-              camera->want_color ?
+              want_color ?
               &(int){3*camera->format.fmt.pix.width} :
               &(int){  camera->format.fmt.pix.width});
 

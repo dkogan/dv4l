@@ -61,46 +61,96 @@ camera_init(camera* self, PyObject* args, PyObject* kwargs)
 
     char* keywords[] = {"device",
                         "width",
-                        "heigth",
+                        "height",
                         "fps",
                         "streaming",
-                        "pixelformat",
+                        "pixelformat_input",
+                        "pixelformat_output",
                         NULL};
 
-    const char* device             = NULL;
-    int         width              = -1;
-    int         height             = -1;
-    int         fps                = -1;
-    int         streaming          = true;
-    const char* pixelformat_fourcc = NULL;
+    const char* device                    = NULL;
+    int         width                     = -1;
+    int         height                    = -1;
+    int         fps                       = -1;
+    int         streaming                 = true;
+    const char* pixelformat_input_string  = NULL;
+    const char* pixelformat_output_string = NULL;
 
-    dv4l_pixelformat_choice_t pixelformat;
+    dv4l_fourcc_t pixelformat_input_fourcc;
+    dv4l_fourcc_t pixelformat_output_fourcc;
 
     if( !PyArg_ParseTupleAndKeywords(args, kwargs,
-                                     "s|iiips", keywords,
+                                     "s|iiipss", keywords,
                                      &device,
                                      &width,
                                      &height,
                                      &fps,
                                      &streaming,
-                                     &pixelformat_fourcc ))
+                                     &pixelformat_input_string,
+                                     &pixelformat_output_string ))
         goto done;
 
 
-    if(pixelformat_fourcc == NULL)
-        pixelformat.choice = BEST_COLOR_PIXELFORMAT;
-    else
+    // Input pixel format. If omitted, set to 0 to ask the library to pick one
     {
-        if(strlen(pixelformat_fourcc) != 4)
+        if(pixelformat_input_string == NULL)
+            pixelformat_input_fourcc.u = 0;
+        else
         {
-            BARF("Invalid pixelformat_fourcc: '%s'. Must contain EXACTLY 4 characters", pixelformat_fourcc);
-            goto done;
-        }
+            int len = strlen(pixelformat_input_string);
+            if(0 >= len || len > 4)
+            {
+                BARF("Invalid pixelformat_input_string: '%s'. Must contain between 1 and 4 characters",
+                     pixelformat_input_string);
+                goto done;
+            }
 
-        pixelformat.choice = USE_REQUESTED_PIXELFORMAT;
-        memcpy(pixelformat.pixelformat_fourcc.s,
-               pixelformat_fourcc,
-               4);
+            int i=0;
+            for(;
+                i<4 && pixelformat_input_string[i];
+                i++)
+            {
+                pixelformat_input_fourcc.s[i] =
+                    pixelformat_input_string[i];
+            }
+            for(;
+                i<4;
+                i++)
+            {
+                pixelformat_input_fourcc.s[i] = ' ';
+            }
+        }
+    }
+
+    // Output pixel format. If omitted, ask for BGR color
+    {
+        if(pixelformat_output_string == NULL)
+            pixelformat_output_fourcc.u = V4L2_PIX_FMT_BGR24;
+        else
+        {
+            int len = strlen(pixelformat_output_string);
+            if(0 >= len || len > 4)
+            {
+                BARF("Invalid pixelformat_output_string: '%s'. Must contain between 1 and 4 characters",
+                     pixelformat_output_string);
+                goto done;
+            }
+
+            int i=0;
+            for(;
+                i<4 && pixelformat_output_string[i];
+                i++)
+            {
+                pixelformat_output_fourcc.s[i] =
+                    pixelformat_output_string[i];
+            }
+            for(;
+                i<4;
+                i++)
+            {
+                pixelformat_output_fourcc.s[i] = ' ';
+            }
+        }
     }
 
     if(!dv4l_init(&self->camera,
@@ -109,7 +159,8 @@ camera_init(camera* self, PyObject* args, PyObject* kwargs)
                   height,
                   fps,
                   streaming,
-                  pixelformat,
+                  pixelformat_input_fourcc,
+                  pixelformat_output_fourcc,
                   NULL, 0))
     {
         BARF("Couldn't init dv4l camera");

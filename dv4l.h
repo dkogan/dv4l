@@ -19,10 +19,10 @@ typedef struct
 {
     int                        fd;
     struct v4l2_format         format;
-    enum AVPixelFormat         av_pixelformat;
+    enum AVPixelFormat         av_pixelformat_input;
+    enum AVPixelFormat         av_pixelformat_output;
 
     bool                       streaming  : 1;
-    bool                       want_color : 1;
     // used if streaming
     int   mmapped_buf_length[NUM_STREAMING_BUFFERS_MAX];
     void* mmapped_buf       [NUM_STREAMING_BUFFERS_MAX];
@@ -49,17 +49,6 @@ typedef struct
 
 } dv4l_t;
 
-typedef struct
-{
-    dv4l_fourcc_t pixelformat_fourcc;
-
-    enum {
-        USE_REQUESTED_PIXELFORMAT,
-        BEST_COLOR_PIXELFORMAT,
-        BEST_GRAYSCALE_PIXELFORMAT
-    } choice;
-} dv4l_pixelformat_choice_t;
-
 bool dv4l_init(// out
                dv4l_t* camera,
 
@@ -77,9 +66,12 @@ bool dv4l_init(// out
                // fps_requested. If false: we read() a frame whenever we like
                bool streaming_requested,
 
-               // We either ask for a specific pixel format from the camera, or
-               // we pick the best one we've got
-               dv4l_pixelformat_choice_t dv4l_pixelformat_choice,
+               // The input pixel format is a suggestion. The driver may refuse
+               // or it may select something else (a warning will be printed in
+               // that case). In the special case of pixelformat_input.u == 0,
+               // we pick the first available format
+               dv4l_fourcc_t pixelformat_input,
+               dv4l_fourcc_t pixelformat_output,
 
                const struct v4l2_control* controls,
                const int Ncontrols);

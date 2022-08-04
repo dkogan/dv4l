@@ -6,10 +6,8 @@ int main(int argc, char* argv[])
 {
     dv4l_t camera;
 
-    dv4l_pixelformat_choice_t format_choice =
-        {.choice      = USE_REQUESTED_PIXELFORMAT,
-         .pixelformat_fourcc = {.u = V4L2_PIX_FMT_JPEG}
-};
+    dv4l_fourcc_t pixelformat_input  = {.u = 0};
+    dv4l_fourcc_t pixelformat_output = {.u = V4L2_PIX_FMT_BGR24};
 
 
     int W = -1;
@@ -26,7 +24,8 @@ int main(int argc, char* argv[])
                   // stream
                   true,
 
-                  format_choice,
+                  pixelformat_input,
+                  pixelformat_output,
 
                   // controls
                   NULL, 0))
