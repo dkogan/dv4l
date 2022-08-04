@@ -91,18 +91,16 @@ camera_init(camera* self, PyObject* args, PyObject* kwargs)
         pixelformat.choice = BEST_COLOR_PIXELFORMAT;
     else
     {
-        if(strlen(pixelformat_fourcc) > 4)
+        if(strlen(pixelformat_fourcc) != 4)
         {
-            BARF("Invalid pixelformat_fourcc: '%s'. Must be at most 4 characters", pixelformat_fourcc);
+            BARF("Invalid pixelformat_fourcc: '%s'. Must contain EXACTLY 4 characters", pixelformat_fourcc);
             goto done;
         }
 
         pixelformat.choice = USE_REQUESTED_PIXELFORMAT;
-        pixelformat.pixelformat =
-            (((uint32_t)pixelformat_fourcc[0]) << 24) |
-            (((uint32_t)pixelformat_fourcc[1]) << 16) |
-            (((uint32_t)pixelformat_fourcc[2]) <<  8) |
-            (((uint32_t)pixelformat_fourcc[3]) <<  0);
+        memcpy(pixelformat.pixelformat_fourcc.s,
+               pixelformat_fourcc,
+               4);
     }
 
     if(!dv4l_init(&self->camera,

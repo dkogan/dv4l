@@ -8,7 +8,8 @@ int main(int argc, char* argv[])
 
     dv4l_pixelformat_choice_t format_choice =
         {.choice      = USE_REQUESTED_PIXELFORMAT,
-         .pixelformat = V4L2_PIX_FMT_JPEG};
+         .pixelformat_fourcc = {.u = V4L2_PIX_FMT_JPEG}
+};
 
 
     int W = -1;

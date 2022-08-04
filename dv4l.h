@@ -9,11 +9,17 @@
 
 #define NUM_STREAMING_BUFFERS_MAX 16
 
+typedef union
+{
+    uint32_t u;
+    char     s[4];
+} dv4l_fourcc_t;
+
 typedef struct
 {
     int                        fd;
     struct v4l2_format         format;
-    enum AVPixelFormat         av_pixel_format;
+    enum AVPixelFormat         av_pixelformat;
 
     bool                       streaming  : 1;
     bool                       want_color : 1;
@@ -45,7 +51,8 @@ typedef struct
 
 typedef struct
 {
-    uint32_t pixelformat;
+    dv4l_fourcc_t pixelformat_fourcc;
+
     enum {
         USE_REQUESTED_PIXELFORMAT,
         BEST_COLOR_PIXELFORMAT,
@@ -72,7 +79,7 @@ bool dv4l_init(// out
 
                // We either ask for a specific pixel format from the camera, or
                // we pick the best one we've got
-               dv4l_pixelformat_choice_t pixelformat_requested,
+               dv4l_pixelformat_choice_t dv4l_pixelformat_choice,
 
                const struct v4l2_control* controls,
                const int Ncontrols);
