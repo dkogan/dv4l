@@ -214,7 +214,7 @@ camera_get_frame(camera* self, PyObject* args, PyObject* kwargs)
         break;
 
     default:
-        BARF("Output pixel format \"%4s\" is unsupported. dv4l_init() should have made sure we never get here");
+        BARF("Output pixel format \"%.4s\" is unsupported. dv4l_init() should have made sure we never get here");
         goto done;
     }
 

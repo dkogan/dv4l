@@ -113,7 +113,7 @@ enum AVPixelFormat pixelformat_av_from_v4l(dv4l_fourcc_t fmt)
     case V4L2_PIX_FMT_GREY:    return AV_PIX_FMT_GRAY8;
     }
 
-    MSG("Selected pixel format \"%4s\" cannot be decoded by libswscale. Giving up",
+    MSG("Selected pixel format \"%.4s\" cannot be decoded by libswscale. Giving up",
         fmt.s);
     return AV_PIX_FMT_NONE;
 }
@@ -147,7 +147,7 @@ bool decoder_init(// out
 
 
     ENSURE_DETAILEDERR(camera->av_pixelformat_input != AV_PIX_FMT_NONE,
-                       "I have no AV pixel format and no decoder either. Probably I need some not-yet-implemented decoder. Input fourcc is \"%4s\"",
+                       "I have no AV pixel format and no decoder either. Probably I need some not-yet-implemented decoder. Input fourcc is \"%.4s\"",
                        camera->pixelformat_input.s);
 
     ENSURE(NULL !=
@@ -257,13 +257,13 @@ bool dv4l_init(// out
     ENSURE_IOCTL(camera->fd, VIDIOC_S_FMT, &camera->format);
     if(pixelformat_did_set->u != camera->pixelformat_input.u)
     {
-        MSG("Warning: asked for pixel format \"%4s\" but V4L2 gave us \"%4s\" instead. Continuing",
+        MSG("Warning: asked for pixel format \"%.4s\" but V4L2 gave us \"%.4s\" instead. Continuing",
             camera->pixelformat_input.s,
             pixelformat_did_set->s);
     }
     else
     {
-        MSG("Info: input pixel format: \"%4s\"",
+        MSG("Info: input pixel format: \"%.4s\"",
             camera->pixelformat_input.s);
     }
 
@@ -583,7 +583,7 @@ bool dv4l_getframe(dv4l_t* camera,
         break;
 
     default:
-        MSG("Output pixel format %4s is unsupported. dv4l_init() should have made sure we never get here", camera->pixelformat_output.s);
+        MSG("Output pixel format %.4s is unsupported. dv4l_init() should have made sure we never get here", camera->pixelformat_output.s);
         return false;
     }
 
