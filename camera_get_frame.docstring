@@ -1,0 +1,31 @@
+Read a frame from the camera
+
+SYNOPSIS
+
+    import dv4l
+
+    camera = dv4l.camera("/dev/video0")
+
+    timestamp,image = camera.get_frame()
+
+The get_frame() method reads the next frame from the video stream. The returned
+data is a (timestamp,image) tuple, which is the timestamp when the frame came
+in, and a new numpy array holding the data. The exact semantics of how timing
+works, when/how this function blocks, etc aren't clear to me yet: I need to
+experiment some more.
+
+ARGUMENTS
+
+There are no arguments. Everything is configured in the dv4l.camera()
+constructor.
+
+RETURNED VALUE
+
+A tuple (timestamp, image)
+
+- timestamp: an integer indicating when this frame was captured. This is
+  microseconds since the UNIX epoch
+
+- image: a new numpy array containing the image. This has either 2 or 3
+  dimensions and the dtype is either np.uint8 or np.uint16, depending on the
+  pixelformat_output argument passed to the dv4l.camera() constructor

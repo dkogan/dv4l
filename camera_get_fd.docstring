@@ -1,0 +1,33 @@
+Returns the file descriptor of the camera interface
+
+SYNOPSIS
+
+    import dv4l
+    from Fl_Gl_Image_Widget import Fl_Gl_Image_Widget
+
+    window        = Fl_Window(800, 600, "video4linux camera stream")
+    image_widget  = Fl_Gl_Image_Widget(0,0, 800,600)
+    window.resizable(window)
+    window.end()
+    window.show()
+
+    camera = dv4l.camera("/dev/video0")
+
+    def update(fd):
+        timestamp,image = camera.get_frame()
+        image_widget.update_image(image_data =image)
+
+    Fl.add_fd(camera.get_fd(),
+              update)
+
+This method exposes the device fd. This is needed for, for instance, GUI
+application main loops so that they can select() or poll() appropriately. A
+common use case is in the synopsis above.
+
+ARGUMENTS
+
+There are no arguments
+
+RETURNED VALUE
+
+An integer file descriptor

@@ -1,0 +1,53 @@
+Initializes the dv4l camera interface
+
+SYNOPSIS
+
+    import dv4l
+
+    camera = dv4l.camera("/dev/video0")
+
+    timestamp,image = camera.get_frame()
+
+The dv4l.camera object is used to connect to a video4linux2 camera, and to read
+images from it.
+
+ARGUMENTS
+
+- device: required string. The device node we are talking to. Often looks like
+  "/dev/video0"
+
+- width
+  height
+
+  optional integers requesting a particular image size. These are suggestions,
+  and the driver may or may not accept these. If omitted, or <0, we'll ask the
+  driver for the biggest images possible.
+
+- fps: optional integer requesting a particular frame rate. This is a suggestion
+  as well. If omitted or <0, we'll get the fastest framerate possible
+
+- streaming: optional boolean, defaulting to True. If true: the driver fills in
+  internal memory buffers with frames as soon as the data is available, and we
+  can read off that data later, whenever we like. We mmap() these buffers at
+  init time. If false we read() the data from the port. I'm not clear on the
+  exact semantic differences yet
+
+- pixelformat_input: an optional fourcc string of 4 characters (or fewer)
+  requesting an input pixel format. As with the other arguments, this is a
+  suggestion only. A console message will be printed if our explicit request was
+  rejected. If omitted, we take the first available pixel format. The v4l-info
+  tool can be used to get a list of available formats
+
+- pixelformat_output: an optional fourcc string of 4 characters (or fewer)
+  requesting an output pixel format. Currently only these formats are supported:
+
+  - "GREY": 8-bit grayscale
+  - "Y16":  16-bit grayscale
+  - "RGB24": 8-bit-per-pixel 3-channel (red,green,blue) color
+  - "BGR24": 8-bit-per-pixel 3-channel (blue,green,red) color
+
+  Any other output format is an error. If omitted, we default to "BGR24".
+
+RETURNED VALUE
+
+The dv4l.camera object we can then use to get frames
