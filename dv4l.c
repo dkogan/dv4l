@@ -447,6 +447,9 @@ bool dv4l_flush_frames(dv4l_t* camera)
 }
 
 bool dv4l_getframe(dv4l_t* camera,
+
+                   // assumed to be large-enough to hold a densely stored image
+                   // containing pixelformat_output data
                    char* image,
                    uint64_t* timestamp_us)
 {
