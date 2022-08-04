@@ -183,12 +183,41 @@ static PyObject*
 camera_get_frame(camera* self, PyObject* args, PyObject* kwargs)
 {
     PyObject* result = NULL;
-    PyObject* image =
-        PyArray_SimpleNew(3,
-                          ((npy_intp[]){self->camera.format.fmt.pix.height,
-                                        self->camera.format.fmt.pix.width,
-                                        3}),
-                          NPY_UINT8);
+    PyObject* image  = NULL;
+
+    switch(self->camera.pixelformat_output.u)
+    {
+    case V4L2_PIX_FMT_BGR24:
+    case V4L2_PIX_FMT_RGB24:
+        image =
+            PyArray_SimpleNew(3,
+                              ((npy_intp[]){self->camera.format.fmt.pix.height,
+                                            self->camera.format.fmt.pix.width,
+                                            3}),
+                              NPY_UINT8);
+        break;
+
+    case V4L2_PIX_FMT_GREY:
+        image =
+            PyArray_SimpleNew(2,
+                              ((npy_intp[]){self->camera.format.fmt.pix.height,
+                                            self->camera.format.fmt.pix.width}),
+                              NPY_UINT8);
+        break;
+
+    case V4L2_PIX_FMT_Y16:
+        image =
+            PyArray_SimpleNew(2,
+                              ((npy_intp[]){self->camera.format.fmt.pix.height,
+                                            self->camera.format.fmt.pix.width}),
+                              NPY_UINT16);
+        break;
+
+    default:
+        BARF("Output pixel format \"%4s\" is unsupported. dv4l_init() should have made sure we never get here");
+        goto done;
+    }
+
     uint64_t timestamp_us;
 
     if(image == NULL)

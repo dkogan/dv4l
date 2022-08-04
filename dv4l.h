@@ -17,12 +17,15 @@ typedef union
 
 typedef struct
 {
-    int                        fd;
-    struct v4l2_format         format;
-    enum AVPixelFormat         av_pixelformat_input;
-    enum AVPixelFormat         av_pixelformat_output;
+    int                fd;
+    struct v4l2_format format;
+    dv4l_fourcc_t      pixelformat_input;
+    dv4l_fourcc_t      pixelformat_output;
+    enum AVPixelFormat av_pixelformat_input;
+    enum AVPixelFormat av_pixelformat_output;
 
-    bool                       streaming  : 1;
+    bool streaming : 1;
+
     // used if streaming
     int   mmapped_buf_length[NUM_STREAMING_BUFFERS_MAX];
     void* mmapped_buf       [NUM_STREAMING_BUFFERS_MAX];

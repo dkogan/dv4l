@@ -122,7 +122,6 @@ static
 bool decoder_init(// out
                   dv4l_t* camera,
                   // in
-                  dv4l_fourcc_t pixelformat_input,
                   int width, int height)
 {
     // for ENSURE()
@@ -132,7 +131,7 @@ bool decoder_init(// out
 
     // swscale can't interpret the pixel format directly. Can avcodec do it and
     // THEN feed swscale?
-    if(pixelformat_input.u == V4L2_PIX_FMT_JPEG)
+    if(camera->pixelformat_input.u == V4L2_PIX_FMT_JPEG)
     {
         ENSURE(NULL != (camera->av_packet        = av_packet_alloc()));
         ENSURE(NULL != (camera->av_codec         = avcodec_find_decoder(AV_CODEC_ID_MJPEG)));
@@ -149,7 +148,7 @@ bool decoder_init(// out
 
     ENSURE_DETAILEDERR(camera->av_pixelformat_input != AV_PIX_FMT_NONE,
                        "I have no AV pixel format and no decoder either. Probably I need some not-yet-implemented decoder. Input fourcc is \"%4s\"",
-                       pixelformat_input.s);
+                       camera->pixelformat_input.s);
 
     ENSURE(NULL !=
            (camera->sws_context =
@@ -200,15 +199,16 @@ bool dv4l_init(// out
     }
 
 
-    *camera = (dv4l_t){};
+    *camera = (dv4l_t){ .pixelformat_input  = pixelformat_input,
+                        .pixelformat_output = pixelformat_output};
 
-    ENSURE_DETAILEDERR(pixelformat_output.u == V4L2_PIX_FMT_BGR24 ||
-                       pixelformat_output.u == V4L2_PIX_FMT_RGB24 ||
-                       pixelformat_output.u == V4L2_PIX_FMT_GREY ||
-                       pixelformat_output.u == V4L2_PIX_FMT_Y16,
+    ENSURE_DETAILEDERR(camera->pixelformat_output.u == V4L2_PIX_FMT_BGR24 ||
+                       camera->pixelformat_output.u == V4L2_PIX_FMT_RGB24 ||
+                       camera->pixelformat_output.u == V4L2_PIX_FMT_GREY ||
+                       camera->pixelformat_output.u == V4L2_PIX_FMT_Y16,
                        "I only support Y8, Y16, BGR and RGB output pixel formats");
 
-    camera->av_pixelformat_output = pixelformat_av_from_v4l(pixelformat_output);
+    camera->av_pixelformat_output = pixelformat_av_from_v4l(camera->pixelformat_output);
     ENSURE(camera->av_pixelformat_output != AV_PIX_FMT_NONE);
 
     ENSURE_DETAILEDERR( (camera->fd = open( device, O_RDWR, 0)) >= 0,
@@ -231,13 +231,13 @@ bool dv4l_init(// out
                 "The caller requested read() access (no streaming), but it's not available. streaming is %savailable",
                 (cap.capabilities & V4L2_CAP_STREAMING) ? "" : "NOT " );
 
-    if(pixelformat_input.u == 0)
+    if(camera->pixelformat_input.u == 0)
     {
         // The caller is asking us to pick a pixel format. I take the first one
         struct v4l2_fmtdesc fmtdesc = {.index = 0,
                                        .type  = V4L2_BUF_TYPE_VIDEO_CAPTURE};
         ENSURE_IOCTL( camera->fd, VIDIOC_ENUM_FMT, &fmtdesc);
-        pixelformat_input.u = fmtdesc.pixelformat;
+        camera->pixelformat_input.u = fmtdesc.pixelformat;
     }
 
     // If asked for the biggest possible images, I ask the driver for an
@@ -252,23 +252,23 @@ bool dv4l_init(// out
 
     dv4l_fourcc_t* pixelformat_did_set =
         (dv4l_fourcc_t*)&camera->format.fmt.pix.pixelformat;
-    *pixelformat_did_set = pixelformat_input;
+    *pixelformat_did_set = camera->pixelformat_input;
 
     ENSURE_IOCTL(camera->fd, VIDIOC_S_FMT, &camera->format);
-    if(pixelformat_did_set->u != pixelformat_input.u)
+    if(pixelformat_did_set->u != camera->pixelformat_input.u)
     {
         MSG("Warning: asked for pixel format \"%4s\" but V4L2 gave us \"%4s\" instead. Continuing",
-            pixelformat_input.s,
+            camera->pixelformat_input.s,
             pixelformat_did_set->s);
     }
     else
     {
         MSG("Info: input pixel format: \"%4s\"",
-            pixelformat_input.s);
+            camera->pixelformat_input.s);
     }
 
-    pixelformat_input = *pixelformat_did_set;
-    camera->av_pixelformat_input = pixelformat_av_from_v4l(pixelformat_input);
+    camera->pixelformat_input = *pixelformat_did_set;
+    camera->av_pixelformat_input = pixelformat_av_from_v4l(camera->pixelformat_input);
     // "camera->av_pixelformat_input == AV_PIX_FMT_NONE" means we need to decode
     // the video stream.
 
@@ -337,7 +337,6 @@ bool dv4l_init(// out
     }
 
     ENSURE(decoder_init(camera,
-                        pixelformat_input,
                         camera->format.fmt.pix.width,
                         camera->format.fmt.pix.height));
 
@@ -567,18 +566,33 @@ bool dv4l_getframe(dv4l_t* camera,
         scale_stride = scale_stride_value;
     }
 
-    bool want_color =
-        camera->av_pixelformat_output == AV_PIX_FMT_BGR24 ||
-        camera->av_pixelformat_output == AV_PIX_FMT_RGB24;
+    int output_stride;
+    switch(camera->pixelformat_output.u)
+    {
+    case V4L2_PIX_FMT_BGR24:
+    case V4L2_PIX_FMT_RGB24:
+        output_stride = 3*camera->format.fmt.pix.width;
+        break;
+
+    case V4L2_PIX_FMT_GREY:
+        output_stride = camera->format.fmt.pix.width;
+        break;
+
+    case V4L2_PIX_FMT_Y16:
+        output_stride = 2*camera->format.fmt.pix.width;
+        break;
+
+    default:
+        MSG("Output pixel format %4s is unsupported. dv4l_init() should have made sure we never get here", camera->pixelformat_output.s);
+        return false;
+    }
 
     sws_scale(camera->sws_context,
               // source
               scale_source, scale_stride, 0, camera->format.fmt.pix.height,
               // destination buffer, stride
               (uint8_t*const*)&image,
-              want_color ?
-              &(int){3*camera->format.fmt.pix.width} :
-              &(int){  camera->format.fmt.pix.width});
+              &output_stride);
 
     cleanup();
 
