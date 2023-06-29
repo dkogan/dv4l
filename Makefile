@@ -1,4 +1,5 @@
-include /usr/include/mrbuild/Makefile.common.header
+include choose_mrbuild.mk
+include $(MRBUILD_MK)/Makefile.common.header
 
 PROJECT_NAME := dv4l
 ABI_VERSION  := 0
@@ -38,4 +39,4 @@ DIST_PY3_MODULES := dv4l
 
 all: dv4l$(PY_EXT_SUFFIX)
 
-include /usr/include/mrbuild/Makefile.common.footer
+include $(MRBUILD_MK)/Makefile.common.footer
