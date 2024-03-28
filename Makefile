@@ -18,7 +18,6 @@ LDLIBS += -lavcodec -lavformat -lavutil -lswscale
 CFLAGS    += --std=gnu99
 CCXXFLAGS += -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-parameter
 
-ALL_PY_EXTENSION_MODULES := dv4l
 %/:
 	mkdir -p $@
 
