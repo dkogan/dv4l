@@ -25,10 +25,6 @@ dv4l$(PY_EXT_SUFFIX): dv4l-pywrap.o libdv4l.so
 
 PYTHON_OBJECTS := dv4l-pywrap.o
 
-# In the python api I have to cast a PyCFunctionWithKeywords to a PyCFunction,
-# and the compiler complains. But that's how Python does it! So I tell the
-# compiler to chill
-$(PYTHON_OBJECTS): CFLAGS += -Wno-cast-function-type
 $(PYTHON_OBJECTS): CFLAGS += $(PY_MRBUILD_CFLAGS)
 
 DIST_PY3_MODULES := dv4l
